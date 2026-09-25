@@ -456,7 +456,7 @@ export function drawScene(ctx, opts) {
     lighting,
     weather,
     accidentLane,
-        accidentLaneId,
+    accidentLaneId,
     rainTime,
   } = opts;
 
@@ -475,9 +475,6 @@ export function drawScene(ctx, opts) {
     if (highlightedDir === 'W') ctx.fillRect(0, cy - ROAD_W / 2, cx - ROAD_W / 2, ROAD_W);
   }
 
-  if (accidentLane) drawAccident(ctx, accidentLane, accidentLaneId);
-
-  
   // 3) Vehicles
   for (let i = 0; i < vehicles.length; i++) {
     drawVehicle(ctx, vehicles[i]);
@@ -486,7 +483,10 @@ export function drawScene(ctx, opts) {
   // 4) Traffic lights
   drawAllTrafficLights(ctx, signalState);
 
-  // 5) Night overlays
+  // 5) Accident marker — drawn ON TOP of vehicles so it's always visible
+  if (accidentLane) drawAccident(ctx, accidentLane, accidentLaneId);
+
+  // 6) Night overlays
   if (lighting && lighting.headlightsOn) {
     drawStreetlights(ctx);
     ctx.save();
@@ -505,10 +505,10 @@ export function drawScene(ctx, opts) {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // 6) Detection boxes
+  // 7) Detection boxes
   if (showDetection) drawDetectionBoxes(ctx, vehicles);
 
-  // 7) Weather
+  // 8) Weather
   if (weather && weather !== 'clear') {
     drawWeatherOverlay(ctx, weather, rainTime);
   }
@@ -569,11 +569,7 @@ function drawAccident(ctx, dir, laneId) {
   for (let i = 0; i < 6; i++) {
     const angle = (i / 6) * Math.PI * 2;
     const dist = 22 + (i % 3) * 4;
-    ctx.fillRect(
-      x + Math.cos(angle) * dist - 2,
-      y + Math.sin(angle) * dist - 2,
-      3, 3
-    );
+    ctx.fillRect(x + Math.cos(angle) * dist - 2, y + Math.sin(angle) * dist - 2, 3, 3);
   }
 
   // "ACCIDENT" label
