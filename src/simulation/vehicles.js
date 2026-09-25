@@ -11,6 +11,21 @@ export const VEHICLE_TYPES = {
 
 const CAR_COLORS = ['#e2e8f0', '#1e293b', '#ef4444', '#3b82f6', '#f8fafc', '#64748b', '#fbbf24', '#8b5cf6', '#14b8a6'];
 
+// Punjab RTO codes — Jalandhar district = PB-08
+const PB_SERIES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+const PB_PREFIXES = ['PB-08', 'PB-08', 'PB-08', 'PB-08', 'PB-08', 'PB-08', 'PB-08', 'PB-08', 'PB-65']; // mostly Jalandhar
+
+let plateCounter = 1000 + Math.floor(Math.random() * 8000);
+
+function generatePunjabPlate() {
+  const prefix = PB_PREFIXES[Math.floor(Math.random() * PB_PREFIXES.length)];
+  const series = PB_SERIES[Math.floor(Math.random() * PB_SERIES.length)];
+  plateCounter = (plateCounter + 137 + Math.floor(Math.random() * 90)) % 9999;
+  if (plateCounter < 1000) plateCounter += 1000;
+  const num = String(plateCounter).padStart(4, '0');
+  return `${prefix}-${series}-${num}`;
+}
+
 let vehicleIdCounter = 0;
 
 export const LANES = ['NA', 'NB', 'EA', 'EB', 'SA', 'SB', 'WA', 'WB'];
@@ -40,6 +55,9 @@ export function createVehicle(lane, type = null, route = null) {
     isInner,
     route: r,
     type: t,
+    plate: t === 'ambulance'
+      ? `PB-08-AMB-${100 + Math.floor(Math.random() * 900)}`
+      : generatePunjabPlate(),
     w: spec.w,
     h: spec.h,
     speed: spec.speed,
@@ -155,7 +173,6 @@ export function isOffScreen(v) {
   return v.x < -150 || v.x > W + 150 || v.y < -150 || v.y > H + 150;
 }
 
-// Move a vehicle forward with realistic car-following + accident support
 export function moveVehicle(v, dt, signal, vehiclesInLane, weather = 'clear', accidentLane = null) {
   if (v.turning) {
     updateTurn(v, dt);
@@ -165,13 +182,10 @@ export function moveVehicle(v, dt, signal, vehiclesInLane, weather = 'clear', ac
   const stopDist = distanceToStopLine(v);
   const inIntersection = stopDist < -4;
 
-  // ---- ACCIDENT: hard block vehicles in the affected lane ----
   if (accidentLane && v.lane === accidentLane && !inIntersection) {
-    // If we're deep enough away (stopDist > 60), keep rolling normally
     if (stopDist > 60) {
-      // fall through to normal car-following — cars naturally queue up as they approach
+      // fall through
     } else {
-      // Close to the accident — brake hard and stop
       v.currentSpeed = Math.max(0, v.currentSpeed - 500 * dt);
       v.stopped = v.currentSpeed < 5;
       v.braking = true;
@@ -225,13 +239,11 @@ export function moveVehicle(v, dt, signal, vehiclesInLane, weather = 'clear', ac
 
   let targetSpeed = v.maxSpeed * weatherFactor;
 
-  // Signal braking
   if (shouldStop && stopDist > 0 && stopDist < reactionDist) {
     targetSpeed = Math.min(targetSpeed, (stopDist / reactionDist) * v.maxSpeed);
   }
   if (shouldStop && stopDist <= 2) targetSpeed = 0;
 
-  // Accident braking (approaching) — cars slow down as they get closer
   if (accidentLane && v.lane === accidentLane) {
     const accidentStopDist = 60;
     if (stopDist > 0 && stopDist < accidentStopDist) {
@@ -239,7 +251,6 @@ export function moveVehicle(v, dt, signal, vehiclesInLane, weather = 'clear', ac
     }
   }
 
-  // Car-ahead braking
   if (isFinite(minGap) && minGap < reactionDist) {
     const ratio = Math.max(0, (minGap - SAFE_GAP) / (reactionDist - SAFE_GAP));
     targetSpeed = Math.min(targetSpeed, ratio * v.maxSpeed * weatherFactor);
